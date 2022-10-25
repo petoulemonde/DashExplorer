@@ -1,0 +1,101 @@
+---
+title: "Interactive database Dashboard"
+author: "Pierre-Etienne TOULEMONDE"
+date: "25/10/2022"
+output: 
+  flexdashboard::flex_dashboard:
+    vertical_layout: scroll
+    smooth_scroll: true    
+    runtime: shiny
+---
+
+```{r steup, include = FALSE}
+install.packages("librarian", repos = "https://cran.rstudio.com/")
+librarian::shelf(tidyverse, visdat, skimr, quiet = TRUE)
+
+# liens utiles : 
+#   
+
+```
+
+Infos générales 
+==============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+h3("Choix de la base de données")
+selectInput("database", 
+            "Jeu de données : ",
+            choices = c("Jeu mtcars", "Jeu iris"))
+
+base_ref <- reactive({
+  aux <- switch(input$database, "Jeu mtcars" = mtcars, "Jeu iris" = iris)
+  return(aux) 
+})
+
+base <- reactive({
+  # base <- base_ref()[ ,colnames(base_ref()) %in% input$choix_var]
+  base <- base_ref() %>%
+    select(input$choix_var)
+  
+  return(base)
+})
+
+h3("Choix des variables à traiter")
+renderUI({ checkboxGroupInput("choix_var",
+                              "Choix des variables",
+                              choices = names(base_ref()),
+                              selected = names(base_ref())[1])
+  })
+
+print("")
+
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Etude des variables
+```{r}
+print("les variables sont : ")
+renderTable({ data.frame(variables = names( base() ) ) })
+
+
+```
+
+#### Les statistiques basiques
+```{r}
+renderTable({
+  data.frame(
+    Name = c("Nombre de lignes", "Nombre de colonnes", "Nombre de colonnes discrètes", "Nombre de colonnes continues"),
+    Value = c(nrow(base()), ncol(base()), length(select_if(base(),is.numeric)), length(select_if(base(),is.categorical))),
+    byrow = FALSE
+    # Percent = 
+  )
+})
+```
+
+#### test 2
+```{r}
+print("test")
+```
+
+
+Les variables numériques 
+===============================================
+### Chart B
+
+```{r}
+
+```
+
+Les variables catégorielles
+====================================================
+### Chart B
+
+```{r}
+
+```
