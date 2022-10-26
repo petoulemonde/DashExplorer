@@ -7,7 +7,17 @@
   if(!"librarian" %in% rownames(installed.packages())) {
     install.packages("librarian", repos = "https://cran.rstudio.com/", dep = TRUE)
   }
-  librarian::shelf(shiny, shinydashboard, tidyverse, visdat, plotly, naniar, corrplot, quiet = TRUE)
+  librarian::shelf(shiny, 
+                   shinydashboard, 
+                   tidyverse, 
+                   visdat, 
+                   plotly, 
+                   VIM, 
+                   corrplot, 
+                   funModelling,
+                   DT,
+                   GGally,
+                   quiet = TRUE)
   
   shinyApp(
     
@@ -18,7 +28,9 @@
         sidebarMenu(
           menuItem("Général", tabName = "dashboard", icon = icon("dashboard")),
           menuItem("Variables numériques", tabName = "tab1", icon = icon("th")),
-          menuItem("Variables catégorielles", tabName = "tab2", icon = icon("th"))
+          menuItem("Variables catégorielles", tabName = "tab2", icon = icon("th")),
+          menuItem("ACP", tabName = "tab3", icon = icon("th")),
+          menuItem("Clusteurisation", tabName = "tab4", icon = icon("th"))
         )
       ),
       
@@ -52,17 +64,15 @@
                     h2("Etude des données manquantes"),
                     textOutput("text_NA"),
                     plotlyOutput("plot_NA_visdat"),
-                    plotlyOutput("plot_NA_naniar")
-                  )
+                    plotOutput("plot_NA_naniar")
+                  ),
+                  
+                  h2("Résumé"),
+                  plotOutput("plot_ggpairs")
           ),
           
           # --- Second tab content : variables nuémriques
           tabItem(tabName = "tab1",
-                  h2("Etude des valeurs manquantes"),
-                  textOutput("text_NA"),
-                  plotlyOutput("plot_NA_visdat_num"),
-                  plotlyOutput("plot_NA_naniar_num"),
-                  
                   h2("Description univariées"),
                   
                   h3("Description"),
@@ -72,29 +82,60 @@
                   plotOutput("plot_qq_num"),
                   
                   h2("Etude des corrélations"),
-                  fluidRow(
-                    h2("Etude des corrélations"),
-                    box ( tableOutput("tab_correlation") ),
-                    plotOutput("plot_correlation")
-                    
-                  )
+                  tableOutput("tab_correlation"),
+                  plotOutput("plot_correlation")
+                  
+                  
           ), 
           
           # 3e tab content : variables catégorielles
-          tabItem(tabName = "tab2",h2("Etude des valeurs manquantes"),
-                  textOutput("text_NA"),
-                  plotlyOutput("plot_NA_visdat_cat"),
-                  plotlyOutput("plot_NA_naniar_cat"),
+          tabItem(tabName = "tab2",
                   
-                
                   h2("Description univariées"),
                   plotOutput("plot_univariate_cat")
                   
+            ), #,
+          
+          # 4e tab content : ACP
+          tabItem(tabName = "tab3",
+                  fluidRow(
+                    h2("Description univariées"),
+                    
+                    box(
+                      h3("Analyse en composante principale"),
+                      plotOutput("acp_var"),
+                      h3("Tableau des pourcentages d'inertie"),
+                      tableOutput("acp_tab_var"),
+                      h3("Histrogramme des % d'inertie"),
+                      plotOutput("acp_plot_tab_var")
+                    ),
+                    
+                    box(
+                      h3("Analyse en composante principale (individus)"),
+                      plotOutput("acp_ind"),
+                      h3("Coordonnées des individus"),
+                      dataTableOutput("acp_tab_ind")
+                    )
+                  )
+                ),
+          
+          # 5e tab content : hclust
+          # https://www.rdocumentation.org/packages/FactoMineR/versions/2.6/topics/plot.HCPC
+          # Voir pour bouton de choix du nombre de clusters
+          tabItem(tabName = "tab4",
+                  fluidRow(
+                      h2("Clusteurisation"),
+                      # Plot
+                      # plot(HCPC(iris_num, 3), choice = "factor.map")
+                      # plot(HCPC(iris_num, 3), choice = "map")
+                      # plot(HCPC(iris_num, 3), choice = "3D.map")
+                    )
+                  )
+          # new tab : 
             )
-        )
-      )
+          )
     ), 
-    
+    # ------------------------------------------------------------------------------------------------------------------------------------
     server = function(input, output) {
       # --- Reactive des bases
       base_ref <- reactive({
@@ -157,8 +198,7 @@
                                                            percent_NA = apply(base(), 2, function(.x) {
                                                              paste(round(sum(is.na(.x) ) / nrow(base()) * 100, 2) , "%") 
                                                              } ))
-        
-                                              })
+                                            })
       
       output$text_NA <- renderText({ 
         if (sum(is.na(base())) == 0) { 
@@ -170,18 +210,26 @@
             vis_dat(base())
           } 
       }) 
-      output$plot_NA_naniar <- renderPlotly({ 
-        if ( sum(is.na(base() ) ) > 0 & sum( any( apply( base(), 2, function(.x) sum(is.na(.x) > 1) ) ) ) ) {
-          gg_miss_upset(base())
+      output$plot_NA_naniar <- renderPlot({ 
+        if ( sum(is.na(base() ) ) > 0 ) {
+          aggr(base(),
+                 col=c('navyblue','red'),
+                 numbers=TRUE,
+                 sortVars=TRUE,
+                 labels=names(base()),
+                 cex.axis=.7, gap=3,
+                 ylab=c("Histogram of missing data","Pattern"))
         }
       })
       
+      
+      # ---- Les outputs de tab1
       output$plot_univariate_num <- renderPlot({
         base() %>% 
           select_if(is.numeric) %>% 
           gather() %>%
           ggplot(aes(x=value)) +
-            geom_histogram() +
+          geom_histogram() +
           facet_wrap(~key, scales = "free")
       })
       
@@ -195,14 +243,6 @@
           facet_wrap(~key, scales = "free")
       })
       
-      output$plot_univariate_cat <- renderPlot({
-        select(base(), -names(select_if(base(), is.numeric) ) ) %>% 
-          gather() %>%
-          ggplot(aes(x=value)) +
-          geom_bar() +
-          facet_wrap(~key, scales = "free")
-      })
-      
       output$tab_correlation <- renderTable({
         cor( select_if(base(), is.numeric) )
       })
@@ -211,9 +251,48 @@
         corrplot(cor(select_if(base(), is.numeric)))
       })
       
-      # ---- Les tests
-      # output$test_output <- renderText({ print(database) })
-      # output$test_table <- renderTable({ database })
+      output$plot_ggpairs <- renderPlot({
+        ggpairs(base())
+      })
+      
+      # ---- les outputs de tab2
+      
+      output$plot_univariate_cat <- renderPlot({
+        select(base(), -names(select_if(base(), is.numeric) ) ) %>% 
+          gather() %>%
+          ggplot(aes(x=value)) +
+          geom_bar() +
+          facet_wrap(~key, scales = "free")
+      })
+      
+      # ---- les outputs de tab3
+    output$acp_var <- renderPlot({
+      PCA(select_if(base(), is.numeric), 
+          graph = TRUE)
+    })
+    
+    output$acp_ind <- renderPlot({
+      plot(PCA(select_if(base(), is.numeric), graph = FALSE), 
+           choix = "ind", 
+           autoLab = "yes")
+    })
+    
+    output$acp_tab_var <- renderTable({
+      PCA(select_if(base(), is.numeric), graph = FALSE)$var$contrib
+    })
+    
+    output$acp_plot_tab_var <- renderPlot({
+      barplot(CA(select_if(base(), is.numeric), graph = FALSE)$eig[, 2], 
+              names.arg = 1:nrow(CA(select_if(base(), is.numeric), graph = FALSE)$eig), 
+              main = "Variances Explained by Dimensions (%)",
+              xlab = "Principal Dimensions",
+              ylab = "Percentage of variances",
+              col ="steelblue")
+    })
+    
+    output$acp_tab_ind <- renderDataTable({
+      data.frame(PCA(select_if(base(), is.numeric), graph = FALSE)$ind$coord)
+    })
       
     }
   )
