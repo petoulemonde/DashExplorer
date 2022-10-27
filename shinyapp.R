@@ -1,17 +1,19 @@
-if(!"librarian" %in% rownames(installed.packages())) {
-  install.packages("librarian", repos = "https://cran.rstudio.com/", dep = TRUE)
-}
-librarian::shelf(shiny, 
-                 shinydashboard, 
-                 tidyverse, 
-                 visdat, 
-                 plotly, 
-                 VIM, 
-                 corrplot, 
-                 funModelling,
-                 DT,
-                 GGally,
-                 quiet = TRUE)
+# if(!"librarian" %in% rownames(installed.packages())) {
+#   install.packages("librarian", repos = "https://cran.rstudio.com/", dep = TRUE)
+# }
+# librarian::shelf(shiny, 
+#                  shinydashboard, 
+#                  tidyverse, 
+#                  visdat, 
+#                  plotly, 
+#                  VIM, 
+#                  corrplot, 
+#                  funModelling,
+#                  DT,
+#                  GGally,
+#                  FactoMineR,
+#                  gtsummary,
+#                  quiet = TRUE)
 
 data_discovery <- function(database = swiss) {
 
@@ -28,6 +30,7 @@ data_discovery <- function(database = swiss) {
           menuItem("Général", tabName = "tab1", icon = icon("dashboard")),
           menuItem("Variables numériques", tabName = "tab2", icon = icon("th")),
           menuItem("Variables catégorielles", tabName = "tab3", icon = icon("th")),
+          menuItem("Table1", tabName="tab7", icon = icon("th")),
           menuItem("ACP", tabName = "tab4", icon = icon("dashboard")),
           menuItem("Clusteurisation", tabName = "tab5", icon = icon("dashboard")),
           menuItem("Table globale", tabName = "tab6", icon = icon("th"))
@@ -61,9 +64,9 @@ data_discovery <- function(database = swiss) {
                   ),
                   
                   fluidRow( # ---- Données manquantes
-                    h2("Résumé"),
-                    plotOutput("plot_ggpairs"),
-                    
+                    # h2("Résumé"),
+                    # plotOutput("plot_ggpairs"),
+                    # 
                     h2("Etude des données manquantes"),
                     textOutput("text_NA"),
                     plotlyOutput("plot_NA_visdat"),
@@ -95,6 +98,22 @@ data_discovery <- function(database = swiss) {
                   plotOutput("plot_univariate_cat")
                   
             ), #,
+          
+          # 4e tab content : TableOne
+          tabItem(tabName = "tab7",
+                  h2("Table 1 des données"),
+                  fluidRow( 
+                    box ( uiOutput("ui_tabOne_choix_ventil") ),
+                    box ( uiOutput("ui_tabOne_choix_aff") ),
+                  ),
+                  
+                  textOutput("tabOne_text_1"),
+                  
+                  h3("Table One"),
+                  print("Variable catégorielle : n (%); Variable nuémrique : Médiane (IQR)"),
+                  # dataTableOutput("tabOne")
+                  uiOutput("tabOne")
+                  ),
           
           # 4e tab content : ACP
           tabItem(tabName = "tab4",
@@ -144,6 +163,7 @@ data_discovery <- function(database = swiss) {
     # ------------------------------------------------------------------------------------------------------------------------------------
     server = function(input, output) {
       # --- Reactive des bases
+      
       base_ref <- reactive({
         aux <- switch(input$database, 
                       "Ma base" = database,
@@ -169,6 +189,7 @@ data_discovery <- function(database = swiss) {
                                           selected = names(base_ref())
                                           )
                                   })
+      
       output$liste_var <- renderTable({ data.frame(variables = names(base() ),
                                                    type = apply(base(), 2, class)) })
       
@@ -256,19 +277,70 @@ data_discovery <- function(database = swiss) {
       output$plot_correlation <- renderPlot({
         corrplot(cor(select_if(base(), is.numeric)))
       })
-      
-      output$plot_ggpairs <- renderPlot({
-        ggpairs(base())
-      })
+      # 
+      # output$plot_ggpairs <- renderPlot({
+      #   ggpairs(base())
+      # })
       
       # ---- les outputs de tab3 : var catégorielles
       
-      output$plot_univariate_cat <- renderPlot({
+      output$plot_univariate_cat <- renderUI({
         select(base(), -names(select_if(base(), is.numeric) ) ) %>% 
           gather() %>%
           ggplot(aes(x=value)) +
           geom_bar() +
           facet_wrap(~key, scales = "free")
+      })
+      
+      # ---- Les outputs tab7 : table One
+      # Lien intéressant : https://www.danieldsjoberg.com/gtsummary/
+      output$tabOne <- renderUI({
+        
+        if ( length(input$tabOne_choix_ventil) == 1 ) {
+          base() %>%
+                       select(input$tabOne_choix_aff, input$tabOne_choix_ventil)  %>%
+                       tbl_summary(by = input$tabOne_choix_ventil, missing = "always" ) %>%
+            modify_header(label = "**Variable**") %>%
+            add_overall(last = TRUE)  %>%
+              add_stat_label() %>%
+              as_gt()
+          
+          
+        } else if ( length(input$tabOne_choix_ventil) > 1) {
+          base() %>%
+                       select(input$tabOne_choix_aff, input$tabOne_choix_ventil) %>%
+            tbl_strata(strata = c(input$tabOne_choix_ventil)[2],
+                       .tbl_fun = ~ .x %>%
+                         tbl_summary( c(input$tabOne_choix_ventil)[1]) %>%
+                                      modify_header(label = "**Variable**") %>% 
+                                        add_overall(last = TRUE) %>%
+                                        add_stat_label() ,
+                                                       missing = "always") %>%
+            as_gt()
+        
+          
+        } else {
+          base() %>%
+                       select(input$tabOne_choix_aff)  %>%
+                       tbl_summary()  %>%
+                       add_stat_label() %>%
+            modify_header(label = "**Variable**") %>% 
+                    as_gt()
+          
+        }
+        
+      })
+      
+      output$tabOne_text_1 <- renderText({
+        input$tabOne_choix_ventil
+      })
+      
+      output$ui_tabOne_choix_ventil <- renderUI({
+        checkboxGroupInput("tabOne_choix_ventil", label = "Choisir la variable de ventilation", names( base() ) )
+      })
+      
+      output$ui_tabOne_choix_aff <- renderUI({
+        checkboxGroupInput("tabOne_choix_aff", label = "Choisir les variables à décrire", names( base() ) )
       })
       
       # ---- les outputs de tab4 : ACP
@@ -321,3 +393,5 @@ data_discovery <- function(database = swiss) {
     }
   )
 }
+
+data_discovery(DNase)
