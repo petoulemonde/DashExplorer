@@ -1,48 +1,48 @@
+if(!"librarian" %in% rownames(installed.packages())) {
+  install.packages("librarian", repos = "https://cran.rstudio.com/", dep = TRUE)
+}
+librarian::shelf(shiny, 
+                 shinydashboard, 
+                 tidyverse, 
+                 visdat, 
+                 plotly, 
+                 VIM, 
+                 corrplot, 
+                 funModelling,
+                 DT,
+                 GGally,
+                 quiet = TRUE)
 
-# data_discovery <- function(database = swiss) {
+data_discovery <- function(database = swiss) {
 
 # Liens : 
 # http://rstudio.github.io/shinydashboard/structure.html#body
-  
-  if(!"librarian" %in% rownames(installed.packages())) {
-    install.packages("librarian", repos = "https://cran.rstudio.com/", dep = TRUE)
-  }
-  librarian::shelf(shiny, 
-                   shinydashboard, 
-                   tidyverse, 
-                   visdat, 
-                   plotly, 
-                   VIM, 
-                   corrplot, 
-                   funModelling,
-                   DT,
-                   GGally,
-                   quiet = TRUE)
-  
   shinyApp(
     
     ui = dashboardPage(
+      
       dashboardHeader(),
       
       dashboardSidebar(
         sidebarMenu(
-          menuItem("Général", tabName = "dashboard", icon = icon("dashboard")),
-          menuItem("Variables numériques", tabName = "tab1", icon = icon("th")),
-          menuItem("Variables catégorielles", tabName = "tab2", icon = icon("th")),
-          menuItem("ACP", tabName = "tab3", icon = icon("th")),
-          menuItem("Clusteurisation", tabName = "tab4", icon = icon("th"))
+          menuItem("Général", tabName = "tab1", icon = icon("dashboard")),
+          menuItem("Variables numériques", tabName = "tab2", icon = icon("th")),
+          menuItem("Variables catégorielles", tabName = "tab3", icon = icon("th")),
+          menuItem("ACP", tabName = "tab4", icon = icon("dashboard")),
+          menuItem("Clusteurisation", tabName = "tab5", icon = icon("dashboard")),
+          menuItem("Table globale", tabName = "tab6", icon = icon("th"))
         )
       ),
       
       dashboardBody(
         tabItems(
-          tabItem(tabName = "dashboard",
+          tabItem(tabName = "tab1",
                   fluidRow( # ---- Choix des variables
                     h2("Choix de la base et des varaibles"),
                     box(
                       selectInput("database", 
                                     "Jeu de données : ",
-                                    choices = c("Ma base", "Jeu mtcars", "Jeu iris", "Jeu swiss")),
+                                    choices = c("Ma base", "Jeu Orange", "Jeu mtcars", "Jeu iris", "Jeu swiss")),
                       uiOutput("choix_var")
                       ),
                     
@@ -61,18 +61,18 @@
                   ),
                   
                   fluidRow( # ---- Données manquantes
+                    h2("Résumé"),
+                    plotOutput("plot_ggpairs"),
+                    
                     h2("Etude des données manquantes"),
                     textOutput("text_NA"),
                     plotlyOutput("plot_NA_visdat"),
                     plotOutput("plot_NA_naniar")
                   ),
-                  
-                  h2("Résumé"),
-                  plotOutput("plot_ggpairs")
-          ),
+           ),
           
           # --- Second tab content : variables nuémriques
-          tabItem(tabName = "tab1",
+          tabItem(tabName = "tab2",
                   h2("Description univariées"),
                   
                   h3("Description"),
@@ -89,7 +89,7 @@
           ), 
           
           # 3e tab content : variables catégorielles
-          tabItem(tabName = "tab2",
+          tabItem(tabName = "tab3",
                   
                   h2("Description univariées"),
                   plotOutput("plot_univariate_cat")
@@ -97,9 +97,9 @@
             ), #,
           
           # 4e tab content : ACP
-          tabItem(tabName = "tab3",
+          tabItem(tabName = "tab4",
                   fluidRow(
-                    h2("Description univariées"),
+                    h2("Analyse en composante princiaple (variables nuémriques seulement)"),
                     
                     box(
                       h3("Analyse en composante principale"),
@@ -122,26 +122,32 @@
           # 5e tab content : hclust
           # https://www.rdocumentation.org/packages/FactoMineR/versions/2.6/topics/plot.HCPC
           # Voir pour bouton de choix du nombre de clusters
-          tabItem(tabName = "tab4",
+          tabItem(tabName = "tab5",
                   fluidRow(
-                      h2("Clusteurisation"),
-                      # Plot
-                      # plot(HCPC(iris_num, 3), choice = "factor.map")
-                      # plot(HCPC(iris_num, 3), choice = "map")
-                      # plot(HCPC(iris_num, 3), choice = "3D.map")
-                    )
-                  )
-          # new tab : 
+                      h2("Clasification hiérarchique sur composante principale (variables numériques seulement)"),
+                      box( numericInput("input_num_clust", 
+                                        "Choisissez le nombre de cluster à considérer", 
+                                        3  ) ),
+                      box( plotOutput("plot_clust_factor_map") ) ,
+                      box( plotOutput("plot_clust_map") ),
+                      box( plotOutput("plot_clust_3D_map") ),
+                      renderDataTable("tab_predict_clust")
+                   )
+                ),
+          tabItem(tabName = "tab6", 
+                  DT::dataTableOutput("full_tab")
+                )
             )
-          )
-    ), 
+        )
+      ),
+  
     # ------------------------------------------------------------------------------------------------------------------------------------
     server = function(input, output) {
       # --- Reactive des bases
       base_ref <- reactive({
         aux <- switch(input$database, 
-                      # "Ma base" = database,
-                      "Ma base" = Orange,
+                      "Ma base" = database,
+                      "Jeu Orange" = Orange,
                       "Jeu mtcars" = mtcars, 
                       "Jeu iris" = iris,
                       "Jeu swiss" = swiss)
@@ -156,7 +162,7 @@
         return(base)
       })
       
-      # ---- Les outputs généraux
+      # ---- Les outputs de tab1 : infos G
       output$choix_var <- renderUI({ checkboxGroupInput("choix_var",
                                           "Choix des variables",
                                           choices = names(base_ref()),
@@ -223,7 +229,7 @@
       })
       
       
-      # ---- Les outputs de tab1
+      # ---- Les outputs de tab2 - Var numériques
       output$plot_univariate_num <- renderPlot({
         base() %>% 
           select_if(is.numeric) %>% 
@@ -255,7 +261,7 @@
         ggpairs(base())
       })
       
-      # ---- les outputs de tab2
+      # ---- les outputs de tab3 : var catégorielles
       
       output$plot_univariate_cat <- renderPlot({
         select(base(), -names(select_if(base(), is.numeric) ) ) %>% 
@@ -265,7 +271,7 @@
           facet_wrap(~key, scales = "free")
       })
       
-      # ---- les outputs de tab3
+      # ---- les outputs de tab4 : ACP
     output$acp_var <- renderPlot({
       PCA(select_if(base(), is.numeric), 
           graph = TRUE)
@@ -293,7 +299,25 @@
     output$acp_tab_ind <- renderDataTable({
       data.frame(PCA(select_if(base(), is.numeric), graph = FALSE)$ind$coord)
     })
-      
+    
+    # ---- Les outputs de tab5 : clusteurisation sur composante principales
+    output$plot_clust_factor_map <- renderPlot({
+        plot(HCPC(select_if(base(), is.numeric), input$input_num_clust), choice = "factor.map")
+        })
+    
+    output$plot_clust_map <- renderPlot({
+      plot(HCPC(select_if(base(), is.numeric), input$input_num_clust), choice = "map")
+    })
+    
+    output$plot_clust_3D_map <- renderPlot({
+      plot(HCPC(select_if(base(), is.numeric), input$input_num_clust), choice = "3D.map")
+    })
+    
+    # ---- Les toutputs tab6 : la table
+    output$full_tab <- renderDataTable({
+      base()
+    })
+    
     }
   )
-# }
+}
