@@ -40,9 +40,9 @@ ui = dashboardPage(
                 fluidRow( # ---- Choix des variables
                   h2("Choix de la base et des varaibles"),
                   box(
-                    # selectInput("database",
-                    #               "Jeu de données : ",
-                    #               choices = c("Ma base", "Jeu Orange", "Jeu iris", "Jeu mtcars", "Jeu swiss")),
+                    selectInput("database",
+                                  "Jeu de données : ",
+                                  choices = c("Ma base", "Jeu Orange", "Jeu iris", "Jeu mtcars", "Jeu swiss")),
                     uiOutput("choix_var")
                     ),
                   
@@ -199,13 +199,12 @@ server = function(input, output, session) {
     })
     
     base_ref <- reactive({
-      # aux <- switch(input$database,
-      #               "Ma base" = database(),
-      #               "Jeu Orange" = Orange,
-      #               "Jeu iris" = iris,
-      #               "Jeu mtcars" = mtcars,
-      #               "Jeu swiss" = swiss)
-      aux <- database()
+      aux <- switch(input$database,
+                    "Ma base" = database(),
+                    "Jeu Orange" = Orange,
+                    "Jeu iris" = iris,
+                    "Jeu mtcars" = mtcars,
+                    "Jeu swiss" = swiss)
       return(aux)
     }) # Switch refuse les réactives comme base de donnée
     
