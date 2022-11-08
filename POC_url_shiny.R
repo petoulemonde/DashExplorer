@@ -1,7 +1,14 @@
-options(shiny.host = '0.0.0.0') # Non fonctionnel
-options(shiny.port = 8888) # fonctionnel, mais pas très utile
-
-library(shiny)
+# packages <- c("librarian")
+# 
+# installed_packages <- packages %in% row.names(installed.packages())
+# if( any( installed_packages == FALSE ) ) {
+#   install.packages(packages[!installed_packages])
+# }
+# rm(packages, installed_packages)
+# 
+# librarian::shelf("callr",
+#                  "pins",
+#                  quiet= TRUE)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -22,44 +29,19 @@ ui <- fluidPage(
         # Show a plot of the generated distribution
         mainPanel(
            plotOutput("distPlot"),
-           textOutput("query"),
-           h3("URL components"),
-           verbatimTextOutput("urlText"),
            
-           h3("Parsed query string"),
-           verbatimTextOutput("queryText")
+           h4("Chemin d'accès"),
+           htmlOutput("pass"),
+
+           h4("table"),
+           tableOutput("dbTable")
         )
     )
 )
 
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
-  
-  observe({
-    query <- parseQueryString(session$clientData$url_search)
-    if (!is.null(query[['paramA']])) {
-      updateTextInput(session, "InputLabel_A", value = query[['paramA']])
-    }
-    if (!is.null(query[['paramB']])) {
-      updateTextInput(session, "InputLabel_A", value = query[['paramB']])
-    }
-  })
-  
-  output$query <- renderText({
-    paste(names(query), query, sep = "=", collapse=", ")
-  })
-  
-  # corresponding to : http://localhost.com/?paramA=hello&?paramB=world
-  # http://127.0.0.1:8888/?paramA=hello
-  
-  # ---- board pins
-  
-  # board <- bord_local()
-  # board <- board_folder(getwd())
-  # data <- pin_reactive_read(board, "shiny", interval = 1000)
-  # output$table <- renderTable(data())
-  
-  # ---- clasic shiny app
+  # ---- classic shiny app
   
     output$distPlot <- renderPlot({
         # generate bins based on input$bins from ui.R
@@ -71,35 +53,50 @@ server <- function(input, output, session) {
              xlab = 'Waiting time to next eruption (in mins)',
              main = 'Histogram of waiting times')
     })
+    
+    # ----- Pins -----
+    chemin <- reactive({
+      query <- parseQueryString(session$clientData$url_search)
+      if (!is.null(query[['param']])) {
+        updateTextInput(session, "InputLabel_A", value = query[['param']])
+      }
+      return(query[['param']])
+    })
 
-    # Return the components of the URL in a string:
-    output$urlText <- renderText({
-      paste(sep = "",
-            "protocol: ", session$clientData$url_protocol, "\n",
-            "hostname: ", session$clientData$url_hostname, "\n",
-            "pathname: ", session$clientData$url_pathname, "\n",
-            "port: ",     session$clientData$url_port,     "\n",
-            "search: ",   session$clientData$url_search,   "\n"
-      )
+    observe({
+      board_dataexplorer <- board_folder( paste( chemin(), "/board_dataexplorer/", sep = "") )
+      data <- pin_reactive_read(board_dataexplorer, "database", interval = 1000)
+      output$dbTable <- renderTable( data() )
     })
     
-    # Parse the GET query string
-    output$queryText <- renderText({
+    # ----- Parameters by URL
+
+    # Return the components of the URL in a string:
+    # output$urlText <- renderText({
+    #   paste(sep = "",
+    #         "protocol: ", session$clientData$url_protocol, "\n",
+    #         "hostname: ", session$clientData$url_hostname, "\n",
+    #         "pathname: ", session$clientData$url_pathname, "\n",
+    #         "port: ",     session$clientData$url_port,     "\n",
+    #         "search: ",   session$clientData$url_search,   "\n"
+    #   )
+    # })
+    
+    output$pass <- renderUI({
       query <- parseQueryString(session$clientData$url_search)
-      
-      # Return a string with key-value pairs
-      paste(names(query), query, sep = "=", collapse=", ")
+      if (!is.null(query[['param']])) {
+        updateTextInput(session, "InputLabel_A", value = query[['param']])
+      }
+      return(query[['param']])
     })
+    
+    # Forme de l'URL pour paramètre : http://127.0.0.1:8888/?param=hello
+    # Si 2 paramètres, forme = http://localhost.com/?paramA=hello&?paramB=world
+    
 }
 
 # Run the application
 shinyApp(ui = ui, server = server)
 
 # Liens : 
-#   https://shiny.rstudio.com/articles/client-data.html
-# https://callr.r-lib.org/ : Pour exéctuion en arrière plan
-# job ackage : https://lindeloev.github.io/job/
-
-# Reactive pins : https://rdrr.io/github/rstudio/pins/man/pin_reactive_read.html
-
 # Passing argument to shiny : https://stackoverflow.com/questions/65588060/how-can-i-pass-an-argument-to-my-shiny-app
