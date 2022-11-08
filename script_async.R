@@ -5,21 +5,11 @@ librarian::shelf("job",
                  "shiny",
                  quiet = TRUE)
 
-job(base_job = {
-  for (i in 1:100) {
-    data(mtcars)
-    moy = mean(mtcars$gear)
-    
-    print(paste("Tour ", i, sep = ""))
-  }
-  
-  # export(value = "all")
-  export(value = c(mtcars, moy))# Renvoie de l'ensemble des éléments du job
-  #c(mtcars, moy) : choisir quoi renvoyer
-})
 
-print("Console is still available, and job run.")
 # It's possible to follow nw job in onglet Background Jobs
+
+autre : Sys.getenv()
+R.home()
 
 # ---------- dataexplorer functions files -----------
 
