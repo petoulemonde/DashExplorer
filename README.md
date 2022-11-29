@@ -26,3 +26,42 @@ Ce package lance un novueau processus R, et exécute au sein de ce nouveau proce
 
 ### Mot de la fin
 Enjoy !
+
+-----------------------------------------------------------------------------------
+## Project Following
+
+Pour la suite : 
+- Editer le contenu du bandeau du haut du dashboard
+- couleur petit bandeau box : bleu si infos, orange si saisie : https://rstudio.github.io/shinydashboard/structure.html#bookmarking-and-restoring-selected-tabs
+- ajouter tabBOx pour ML : https://rstudio.github.io/shinydashboard/structure.html#bookmarking-and-restoring-selected-tabs
+- valueBox données manquantes : https://rstudio.github.io/shinydashboard/structure.html#bookmarking-and-restoring-selected-tabs
+
+29-11-2022 : 
+- Modification des icones des onglets
+- Correction de quelques erreurs d'orthographe
+- Modification du correlation plot
+
+16-11-2022 : 
+- Première version opérationnelle du dashboard
+- tag v1
+
+08-11-2022 : 
+- Preuve de concept fonctionnel de lancement asynchrone, avec interactive database via pin_reactive
+- Problème de prise en chrge de base réactive dans switch
+
+07-11-2022 : 
+- Début des tests de lancement du dashboard dans un nouveau processus
+
+27-10-2022 : 
+- Ajout du README.md
+- Ajout de tableone
+
+26-10-2022 : 
+- Passage du projet en shiny
+- Description jusqu'à l'ACP
+
+25-10-2022 : Création du projet
+
+
+
+

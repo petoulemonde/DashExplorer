@@ -23,12 +23,12 @@ ui = dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem("Général", tabName = "tab1", icon = icon("dashboard")),
-      menuItem("Variables numériques", tabName = "tab2", icon = icon("th")),
-      menuItem("Variables catégorielles", tabName = "tab3", icon = icon("th")),
-      menuItem("Table1", tabName="tab7", icon = icon("th")),
-      menuItem("ACP", tabName = "tab4", icon = icon("dashboard")),
-      menuItem("Clusteurisation", tabName = "tab5", icon = icon("dashboard")),
-      menuItem("Table globale", tabName = "tab6", icon = icon("th"))
+      menuItem("Var. numériques", tabName = "tab2", icon = icon("plus", lib = "glyphicon")),
+      menuItem("Var. catégorielles", tabName = "tab3", icon = icon("text-size", lib = "glyphicon")),
+      menuItem("Table1", tabName="tab7", icon = icon("list-alt", lib = "glyphicon")),
+      menuItem("ACP", tabName = "tab4", icon = icon("stats", lib = "glyphicon")),
+      menuItem("Clusteurisation", tabName = "tab5", icon = icon("th", lib = "glyphicon")),
+      menuItem("Table globale", tabName = "tab6", icon = icon("calendar", lib = "glyphicon"))
     )
   ),
   
@@ -113,7 +113,7 @@ ui = dashboardPage(
       # 4e tab content : ACP
       tabItem(tabName = "tab4",
               fluidRow(
-                h2("Analyse en composante princiaple (variables nuémriques seulement)"),
+                h2("Analyse en composante princiaple (variables numériques seulement)"),
                 
                 box(
                   h3("Analyse en composante principale"),
@@ -156,6 +156,9 @@ ui = dashboardPage(
 )
 
 # ------------------------------------------------------------------------------------------------------------------------------------
+
+# About tabBox, ValueBox and some visuals stuff : https://rstudio.github.io/shinydashboard/structure.html#bookmarking-and-restoring-selected-tabs
+
 server = function(input, output, session) {
   session$onSessionEnded(stopApp)
   
@@ -197,7 +200,6 @@ server = function(input, output, session) {
                   "hostname: ", session$clientData$url_hostname, "\n",
                   "pathname: ", session$clientData$url_pathname, "\n",
                   "port: ",     session$clientData$url_port,     "\n" ) )
-    # "port: ",     session$clientData$url_port,     "\n",
     # "Essai de type : ", class(pin_read(board_dataexplorer(), "database")), "\n\n" ) )
   })
   
@@ -217,8 +219,6 @@ server = function(input, output, session) {
                   "Jeu swiss" = swiss)
     return(aux)
   }) # Switch refuse les réactives comme base de donnée
-  
-  
   
   base <- reactive({
     # base <- base_ref()[ ,colnames(base_ref()) %in% input$choix_var]
@@ -250,18 +250,18 @@ server = function(input, output, session) {
                 ncol(base()), 
                 length(select_if(base(),is.numeric)), 
                 length(select(base(), -names(select_if(base(), is.numeric) ) ) ), 
-                paste(as.character(object.size(base())), "kb")
+                paste(as.character(round(object.size(base())/1024), 2), "kb")
       ),
-      Percent = c("/", "/", 
+      Percent = c("/", 
+                  "/", 
                   paste(
                     as.character(
-                      round(length(select_if(base(),is.numeric)) / length(names(base())) * 100, 2), 
-                      "%", 
-                      sep = "")), 
+                      round(length(select_if(base(),is.numeric)) / length(names(base())) * 100, 2)), 
+                      "%"), 
                   paste(
                     as.character(
-                      round(length(select(base(), -names(select_if(base(), is.numeric) ) ) ) / length(names(base() ) ) * 100, 2 ), 
-                      "%", sep = "" ) ),
+                      round(length(select(base(), -names(select_if(base(), is.numeric) ) ) ) / length(names(base() ) ) * 100, 2 )), 
+                      "%"),
                   "/")
     )
   })
@@ -321,7 +321,11 @@ server = function(input, output, session) {
   })
   
   output$plot_correlation <- renderPlot({
-    corrplot(cor(select_if(base(), is.numeric)))
+    corrplot(round(cor(select_if(base(), is.numeric)),2), 
+             type="upper", 
+             order="hclust", 
+             tl.col="black", 
+             tl.srt=45)
   })
   # 
   # output$plot_ggpairs <- renderPlot({

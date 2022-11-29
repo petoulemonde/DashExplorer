@@ -1,5 +1,6 @@
 # ---- Pour obsidian
 librarian::shelf("job", 
+                 "tidyverse",
                  "callr", 
                  "processx",
                  "shiny",
@@ -101,10 +102,10 @@ upload_dash <- function(base, chemin) {
   print("Upload OK !")
 }
 
-# data("USArrests")
-# chemin = getwd()
-# 
-# rs <- init_board(USArrests %>% mutate(across(is.numeric, as.character)), chemin)
+data("USArrests")
+chemin = getwd()
+
+rs <- init_board(USArrests, chemin)
 # upload_dash(BOD, chemin)
 # rs$read()
 # close_board(rs, chemin)
